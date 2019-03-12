@@ -38,14 +38,17 @@
 package org.jooq.mcve.test;
 
 import static org.jooq.mcve.Tables.TEST;
-import static org.junit.Assert.assertEquals;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 
 import org.jooq.DSLContext;
+import org.jooq.Field;
+import org.jooq.Record1;
+import org.jooq.Record3;
+import org.jooq.Result;
+import org.jooq.Table;
 import org.jooq.impl.DSL;
-import org.jooq.mcve.tables.records.TestRecord;
 
 import org.junit.After;
 import org.junit.Before;
@@ -70,15 +73,25 @@ public class MCVETest {
     }
 
     @Test
-    public void mcveTest() {
-        TestRecord result =
+    public void testSelectAnyArray() {
         ctx.insertInto(TEST)
-           .columns(TEST.VALUE)
-           .values(42)
-           .returning(TEST.ID)
-           .fetchOne();
+                .columns(TEST.VALUE)
+                .values(5).values(7).values(13).values(99)
+                .execute();
 
-        result.refresh();
-        assertEquals(42, (int) result.getValue());
+        Field<Integer[]> values = DSL.array(5, 7, 13, 17);
+        Field<Integer[]> values2 = DSL.array(99, 101);
+
+        Table<Record1<Integer[]>> valuesTable = DSL.values(DSL.row(values), DSL.row(values2));
+
+        Field<Integer[]> field = valuesTable.field(0, Integer[].class);
+
+        Result<Record3<Integer, Integer, Integer[]>> fetch = ctx.select(TEST.VALUE, TEST.ID, field)
+                .from(TEST, valuesTable)
+                .where(TEST.VALUE.eq(DSL.any(field)))
+                .fetch();
+
+        System.out.println(fetch);
     }
+
 }
